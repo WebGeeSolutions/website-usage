@@ -203,10 +203,10 @@ get_stats() {
 }
 
 # Main execution
-if [ "$WATCH_MODE" = true ]; then
-    # Use watch command with bash to execute the script
-    SCRIPT_PATH=$(readlink -f "$0")
-    exec watch -n 2 -t -c "bash ${SCRIPT_PATH} $WEBSITE_ID"
-else
-    get_stats
-fi 
+    if [ "$WATCH_MODE" = true ]; then
+       # Use watch to run the script directly without unnecessary bash invocation
+       SCRIPT_PATH=$(readlink -f "$0")
+       watch -n 2 -t -c "$SCRIPT_PATH $WEBSITE_ID"
+    else
+       get_stats 
+    fi
