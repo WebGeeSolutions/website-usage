@@ -83,6 +83,10 @@ while [[ $# -gt 0 ]]; do
             JSON_MODE=true
             shift
             ;;
+        -*)
+            echo -e "${RED}Error: Unknown option '$1'${RESET}"
+            show_help
+            ;;
         *)
             if [ -z "$WEBSITE_ID" ]; then
                 WEBSITE_ID="$1"
