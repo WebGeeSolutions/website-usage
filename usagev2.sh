@@ -9,7 +9,7 @@ RESET="\e[0m"
 
 # Function to display help message
 show_help() {
-    echo -e "${BLUE}Usage: $0 [OPTIONS] <website_id>${RESET}"
+    echo -e "${BLUE}Usage: $0 [OPTIONS] [website_id]${RESET}"
     echo ""
     echo "Options:"
     echo "  --help     Display this help message"
@@ -17,10 +17,54 @@ show_help() {
     echo "  --json     Output in JSON format"
     echo ""
     echo "Example:"
-    echo "  $0 abc123"
-    echo "  $0 --watch abc123"
-    echo "  $0 --json abc123"
+    echo "  $0                    # Interactive mode - select from available websites"
+    echo "  $0 abc123            # Direct mode - specify website ID"
+    echo "  $0 --watch abc123    # Watch mode with specific website"
+    echo "  $0 --json abc123     # JSON output for specific website"
     exit 0
+}
+
+# Function to get list of available websites
+get_available_websites() {
+    local websites=()
+    while IFS= read -r website; do
+        websites+=("$website")
+    done < <(ls /sys/fs/cgroup/websites/ | grep -E '^[0-9a-f-]{36}$')
+    echo "${websites[@]}"
+}
+
+# Function to display website selection menu
+select_website() {
+    local websites=($(get_available_websites))
+    
+    if [ ${#websites[@]} -eq 0 ]; then
+        echo -e "${RED}No websites found.${RESET}"
+        exit 1
+    fi
+
+    echo -e "${BLUE}Available Websites:${RESET}"
+    echo -e "${YELLOW}----------------------------------------${RESET}"
+    for i in "${!websites[@]}"; do
+        local owner=$(stat -c "%U" "/var/www/${websites[$i]}" 2>/dev/null || echo "unknown")
+        echo -e "${GREEN}$((i + 1)).${RESET} ${websites[$i]} (Owner: $owner)"
+    done
+    echo -e "${YELLOW}----------------------------------------${RESET}"
+    
+    while true; do
+        echo -e "${BLUE}Select a website number (1-${#websites[@]}) or 'q' to quit:${RESET}"
+        read -r choice
+        
+        if [[ "$choice" == "q" ]]; then
+            exit 0
+        fi
+        
+        if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#websites[@]} )); then
+            WEBSITE_ID="${websites[$((choice - 1))]}"
+            return
+        else
+            echo -e "${RED}Invalid selection. Please try again.${RESET}"
+        fi
+    done
 }
 
 # Process command-line arguments
@@ -51,9 +95,9 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# If no website ID provided, enter interactive mode
 if [ -z "$WEBSITE_ID" ]; then
-    echo -e "${RED}Error: Website ID is required${RESET}"
-    show_help
+    select_website
 fi
 
 CGROUP_PATH="/sys/fs/cgroup/websites/$WEBSITE_ID"
@@ -167,4 +211,4 @@ if [ "$WATCH_MODE" = true ]; then
     done
 else
     get_stats
-fi
+fi 
