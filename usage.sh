@@ -9,7 +9,7 @@ RESET="\e[0m"
 
 # Function to display help message
 show_help() {
-    echo -e "${BLUE}Usage: $0 [OPTIONS] <website_id>${RESET}"
+    echo -e "${BLUE}Usage: $0 [OPTIONS] [website_id]${RESET}"
     echo ""
     echo "Options:"
     echo "  --help     Display this help message"
@@ -17,10 +17,54 @@ show_help() {
     echo "  --json     Output in JSON format"
     echo ""
     echo "Example:"
-    echo "  $0 abc123"
-    echo "  $0 --watch abc123"
-    echo "  $0 --json abc123"
+    echo "  $0                    # Interactive mode - select from available websites"
+    echo "  $0 abc123            # Direct mode - specify website ID"
+    echo "  $0 --watch abc123    # Watch mode with specific website"
+    echo "  $0 --json abc123     # JSON output for specific website"
     exit 0
+}
+
+# Function to get list of available websites
+get_available_websites() {
+    local websites=()
+    while IFS= read -r website; do
+        websites+=("$website")
+    done < <(ls /sys/fs/cgroup/websites/ | grep -E '^[0-9a-f-]{36}$')
+    echo "${websites[@]}"
+}
+
+# Function to display website selection menu
+select_website() {
+    local websites=($(get_available_websites))
+    
+    if [ ${#websites[@]} -eq 0 ]; then
+        echo -e "${RED}No websites found.${RESET}"
+        exit 1
+    fi
+
+    echo -e "${BLUE}Available Websites:${RESET}"
+    echo -e "${YELLOW}----------------------------------------${RESET}"
+    for i in "${!websites[@]}"; do
+        local owner=$(stat -c "%U" "/var/www/${websites[$i]}" 2>/dev/null || echo "unknown")
+        echo -e "${GREEN}$((i + 1)).${RESET} ${websites[$i]} (Owner: $owner)"
+    done
+    echo -e "${YELLOW}----------------------------------------${RESET}"
+    
+    while true; do
+        echo -e "${BLUE}Select a website number (1-${#websites[@]}) or 'q' to quit:${RESET}"
+        read -r choice
+        
+        if [[ "$choice" == "q" ]]; then
+            exit 0
+        fi
+        
+        if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#websites[@]} )); then
+            WEBSITE_ID="${websites[$((choice - 1))]}"
+            return
+        else
+            echo -e "${RED}Invalid selection. Please try again.${RESET}"
+        fi
+    done
 }
 
 # Process command-line arguments
@@ -51,9 +95,9 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# If no website ID provided, enter interactive mode
 if [ -z "$WEBSITE_ID" ]; then
-    echo -e "${RED}Error: Website ID is required${RESET}"
-    show_help
+    select_website
 fi
 
 CGROUP_PATH="/sys/fs/cgroup/websites/$WEBSITE_ID"
@@ -70,13 +114,13 @@ get_stats() {
     CPU_QUOTA=$(echo $CPU_MAX | awk '{print $1}')
     CPU_PERIOD=$(echo $CPU_MAX | awk '{print $2}')
 
-    # Get number of CPU cores
-    CPU_CORES=$(nproc)
-
-    # Calculate CPU limit
+    # Calculate allocated CPU cores
     if [ "$CPU_QUOTA" == "max" ]; then
+        CPU_CORES=$(nproc)
         CPU_LIMIT=$((CPU_CORES * CPU_PERIOD))
     else
+        # Calculate allocated cores from quota/period
+        CPU_CORES=$(echo "scale=1; $CPU_QUOTA / $CPU_PERIOD" | bc)
         CPU_LIMIT=$CPU_QUOTA
     fi
 
@@ -144,7 +188,7 @@ get_stats() {
     if [ "$JSON_MODE" = true ]; then
         echo "{\"website_id\":\"$WEBSITE_ID\",\"owner\":\"$WEBSITE_OWNER\",\"cpu\":{\"usage\":$CPU_PERCENTAGE,\"cores\":$CPU_CORES,\"quota\":$CPU_QUOTA,\"period\":$CPU_PERIOD},\"memory\":{\"used\":$MEMORY_USAGE_MB,\"max\":$MEMORY_MAX_MB,\"percentage\":$MEMORY_PERCENTAGE},\"io\":{\"read\":$read_speed_mb,\"write\":$write_speed_mb,\"total\":$total_speed_mb},\"processes\":{\"current\":$PROC_COUNT,\"max\":\"$PROC_MAX\"}}"
     else
-        echo -e "${BLUE}Website Information:${RESET}"
+        echo -e "${YELLOW}▶ Website Information ◀${RESET}"
         echo -e "${GREEN}ID:${RESET} $WEBSITE_ID"
         echo -e "${GREEN}Owner:${RESET} $WEBSITE_OWNER"
         echo -e "${GREEN}CPU Usage:${RESET} $CPU_PERCENTAGE% (${CPU_CORES} cores)"
@@ -160,11 +204,9 @@ get_stats() {
 
 # Main execution
 if [ "$WATCH_MODE" = true ]; then
-    while true; do
-        clear
-        get_stats
-        sleep 2
-    done
+    # Use watch command with bash to execute the script
+    SCRIPT_PATH=$(readlink -f "$0")
+    exec watch -n 2 -t -c "bash ${SCRIPT_PATH} $WEBSITE_ID"
 else
     get_stats
-fi
+fi 

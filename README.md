@@ -150,3 +150,25 @@ Processes: 12 / 50
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
+## Changelog
+
+### Version 2.1
+- Fixed CPU usage calculation to show percentage based on allocated quota instead of total system CPU
+- Fixed CPU cores display to show allocated cores instead of total system cores
+- Improved watch mode functionality using native `watch` command for smoother updates
+- Enhanced header display with bold yellow formatting and arrow indicators
+- Fixed permission issues in watch mode by explicitly using bash
+- Fixed script path resolution in watch mode
+- Added proper error handling for watch mode execution
+
+### Version 2.0
+- Added interactive website selection mode
+- Added color-coded output
+- Added JSON output format
+- Added watch mode for continuous monitoring
+- Added process count monitoring
+- Added website owner information
+- Enhanced error handling and user feedback
+- Improved formatting and readability
+- Added command-line arguments support
+
