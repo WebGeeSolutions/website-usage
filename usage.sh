@@ -185,21 +185,59 @@ get_stats() {
     # Get website owner
     WEBSITE_OWNER=$(stat -c "%U" "/var/www/$WEBSITE_ID" 2>/dev/null || echo "unknown")
 
-    if [ "$JSON_MODE" = true ]; then
-        echo "{\"website_id\":\"$WEBSITE_ID\",\"owner\":\"$WEBSITE_OWNER\",\"cpu\":{\"usage\":$CPU_PERCENTAGE,\"cores\":$CPU_CORES,\"quota\":$CPU_QUOTA,\"period\":$CPU_PERIOD},\"memory\":{\"used\":$MEMORY_USAGE_MB,\"max\":$MEMORY_MAX_MB,\"percentage\":$MEMORY_PERCENTAGE},\"io\":{\"read\":$read_speed_mb,\"write\":$write_speed_mb,\"total\":$total_speed_mb},\"processes\":{\"current\":$PROC_COUNT,\"max\":\"$PROC_MAX\"}}"
+if [ "$JSON_MODE" = true ]; then
+    # Ensure all values are properly formatted
+    CPU_PERCENTAGE=${CPU_PERCENTAGE:-0}
+    CPU_CORES=${CPU_CORES:-0}
+    CPU_QUOTA=${CPU_QUOTA:-"unknown"}
+    CPU_PERIOD=${CPU_PERIOD:-"unknown"}
+
+    MEMORY_USAGE_MB=${MEMORY_USAGE_MB:-0}
+    MEMORY_MAX_MB=${MEMORY_MAX_MB:-0}
+    MEMORY_PERCENTAGE=${MEMORY_PERCENTAGE:-0}
+
+    PROC_COUNT=${PROC_COUNT:-0}
+    PROC_MAX=${PROC_MAX:-"unlimited"}
+
+    json_data=$(cat <<EOF
+{
+    "website_id": "$WEBSITE_ID",
+    "owner": "$WEBSITE_OWNER",
+    "cpu": {
+        "usage": $CPU_PERCENTAGE,
+        "cores": $CPU_CORES,
+        "quota": "$CPU_QUOTA",
+        "period": "$CPU_PERIOD"
+    },
+    "memory": {
+        "used": $MEMORY_USAGE_MB,
+        "max": $MEMORY_MAX_MB,
+        "percentage": $MEMORY_PERCENTAGE
+    },
+    "processes": {
+        "current": $PROC_COUNT,
+        "max": "$PROC_MAX"
+    }
+}
+EOF
+    )
+
+    # Pretty-print JSON if jq is available
+    if command -v jq &> /dev/null; then
+        echo "$json_data" | jq .
     else
-        echo -e "${YELLOW}▶ Website Information ◀${RESET}"
-        echo -e "${GREEN}ID:${RESET} $WEBSITE_ID"
-        echo -e "${GREEN}Owner:${RESET} $WEBSITE_OWNER"
-        echo -e "${GREEN}CPU Usage:${RESET} $CPU_PERCENTAGE% (${CPU_CORES} cores)"
-        echo -e "${GREEN}Memory Usage:${RESET} $MEMORY_USAGE_MB MB / $MEMORY_MAX_MB MB ($MEMORY_PERCENTAGE%)"
-        echo -e "${GREEN}IO Usage:${RESET}"
-        echo -e "  Read:  $read_speed_mb MB/s"
-        echo -e "  Write: $write_speed_mb MB/s"
-        echo -e "  Total: $total_speed_mb MB/s"
-        echo -e "${GREEN}Processes:${RESET} $PROC_COUNT / $PROC_MAX"
-        echo -e "${YELLOW}----------------------------------------${RESET}"
+        echo "$json_data"
     fi
+else
+    echo -e "${YELLOW}▶ Website Information ◀${RESET}"
+    echo -e "${GREEN}ID:${RESET} $WEBSITE_ID"
+    echo -e "${GREEN}Owner:${RESET} $WEBSITE_OWNER"
+    echo -e "${GREEN}CPU Usage:${RESET} $CPU_PERCENTAGE% (${CPU_CORES} cores)"
+    echo -e "${GREEN}Memory Usage:${RESET} $MEMORY_USAGE_MB MB / $MEMORY_MAX_MB MB ($MEMORY_PERCENTAGE%)"
+    echo -e "${GREEN}Processes:${RESET} $PROC_COUNT / $PROC_MAX"
+    echo -e "${YELLOW}----------------------------------------${RESET}"
+fi
+
 }
 
 # Main execution
