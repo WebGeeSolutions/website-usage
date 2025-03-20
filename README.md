@@ -134,7 +134,6 @@ Processes: 12 / 50
 - Contact: support@webgee.com
 - Contributions:
   - Interactive website selection mode
-  - Color-coded output
   - JSON output format
   - Watch mode
   - Additional metrics and improved formatting
@@ -142,6 +141,7 @@ Processes: 12 / 50
 ### 8DCloud
 - Website: [https://8dcloud.com](https://8dcloud.com)
 - Contributions:
+  - Color-coded output
   - Enhanced the original `usage.sh` script
   - Created the new `siteinfo.sh` script
   - Added better error handling and user feedback
