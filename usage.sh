@@ -143,9 +143,17 @@ get_stats() {
     if [ "$MEMORY_MAX" == "max" ]; then
         MEMORY_MAX=$(grep MemTotal /proc/meminfo | awk '{print $2 * 1024}')
     fi
+
+# Changed to keep divide by zero from being an issue (8Dweb)
+
     MEMORY_USAGE_MB=$((MEMORY_USAGE / 1024 / 1024))
     MEMORY_MAX_MB=$((MEMORY_MAX / 1024 / 1024))
-    MEMORY_PERCENTAGE=$(echo "scale=2; ($MEMORY_USAGE / $MEMORY_MAX) * 100" | bc)
+
+    if [ "$MEMORY_MAX" -gt 0 ]; then
+        MEMORY_PERCENTAGE=$(echo "scale=2; ($MEMORY_USAGE * 100) / $MEMORY_MAX" | bc)
+    else
+        MEMORY_PERCENTAGE=0 
+    fi
 
     # Get Initial IO Usage
     if [ -f "$CGROUP_PATH/io.stat" ]; then
